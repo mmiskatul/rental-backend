@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from pymongo.errors import DuplicateKeyError
 
@@ -181,7 +181,11 @@ async def me(current_user: Annotated[dict, Depends(get_current_user)]) -> UserPu
 
 
 @router.post("/refresh", response_model=TokenPair)
-async def refresh(request: Request, response: Response, payload: RefreshRequest | None = None) -> TokenPair:
+async def refresh(
+    request: Request,
+    response: Response,
+    payload: RefreshRequest | None = Body(default=None),
+) -> TokenPair:
     refresh_token = payload.refresh_token if payload else None
     refresh_token = refresh_token or request.cookies.get(REFRESH_COOKIE)
     if not refresh_token:

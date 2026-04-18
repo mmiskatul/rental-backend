@@ -20,3 +20,7 @@ class CarPublic(BaseModel):
     image_public_id: str
     created_at: datetime
     updated_at: datetime
+
+
+class MessageResponse(BaseModel):
+    message: str

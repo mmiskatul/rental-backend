@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str
     cloudinary_folder: str = "rental-sphere/cars"
 
-    seed_admin_email: str = "admin@rentalsphere.local"
+    seed_admin_email: str = "admin@rentalsphere.com"
     seed_admin_password: str = "Admin12345"
     seed_admin_name: str = "Rental Sphere Admin"
-    seed_customer_email: str = "customer@rentalsphere.local"
+    seed_customer_email: str = "customer@rentalsphere.com"
     seed_customer_password: str = "Customer12345"
     seed_customer_name: str = "Rental Sphere Customer"
 

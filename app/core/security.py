@@ -4,19 +4,23 @@ from random import SystemRandom
 from secrets import token_urlsafe
 
 import jwt
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from fastapi import HTTPException, status
-from passlib.context import CryptContext
 
 
-password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hasher = PasswordHasher()
 
 
 def hash_password(password: str) -> str:
-    return password_context.hash(password)
+    return password_hasher.hash(password)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return password_context.verify(password, password_hash)
+    try:
+        return password_hasher.verify(password_hash, password)
+    except (InvalidHashError, VerifyMismatchError):
+        return False
 
 
 def create_access_token(user_id: str, email: str, role: str) -> str:

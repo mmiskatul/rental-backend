@@ -14,6 +14,10 @@ async def connect_to_mongo() -> None:
     await database.users.create_index("email", unique=True)
     await database.cars.create_index("owner_id")
     await database.cars.create_index("created_at")
+    await database.bookings.create_index("customer_id")
+    await database.bookings.create_index("car_id")
+    await database.bookings.create_index("status")
+    await database.bookings.create_index("created_at")
 
 
 async def close_mongo_connection() -> None:
@@ -33,3 +37,7 @@ def get_users_collection() -> AsyncIOMotorCollection:
 
 def get_cars_collection() -> AsyncIOMotorCollection:
     return get_database().cars
+
+
+def get_bookings_collection() -> AsyncIOMotorCollection:
+    return get_database().bookings
