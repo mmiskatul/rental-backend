@@ -5,6 +5,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.routes.auth import get_current_user
+from app.api.routes.notifications import create_notification
 from app.db.mongodb import get_bookings_collection, get_cars_collection
 from app.schemas.bookings import BookingCreate, BookingPublic, BookingStatusUpdate
 from app.schemas.cars import MessageResponse
@@ -51,6 +52,12 @@ async def create_booking(
 
     result = await get_bookings_collection().insert_one(booking)
     booking["_id"] = result.inserted_id
+    await create_notification(
+        role="admin",
+        notification_type="booking",
+        title=f"New booking request from {current_user['name']}",
+        description=f"{car['title']} requested for {days} days.",
+    )
     return serialize_booking(booking)
 
 
@@ -94,7 +101,91 @@ async def update_booking_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
 
     booking = await get_bookings_collection().find_one({"_id": object_id})
+    await create_notification(
+        user_id=booking["customer_id"],
+        notification_type="approval" if payload.status == "approved" else "rejected" if payload.status == "rejected" else "system",
+        title=f"Booking {payload.status.replace('_', ' ')}",
+        description=f"Your booking for {booking['car_title']} is now {payload.status.replace('_', ' ')}.",
+    )
     return serialize_booking(booking)
+
+
+@router.post("/{booking_id}/request-pickup", response_model=BookingPublic)
+async def request_pickup(
+    booking_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> BookingPublic:
+    require_admin(current_user)
+    booking = await find_booking_for_user(booking_id, current_user)
+    if booking["status"] != "approved":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only approved bookings can request pickup confirmation.")
+    updated = await set_booking_status(booking["_id"], "pickup_requested")
+    await create_notification(
+        user_id=booking["customer_id"],
+        notification_type="pickup",
+        title="Pickup confirmation requested",
+        description=f"Confirm pickup for {booking['car_title']} from your booking page.",
+    )
+    return updated
+
+
+@router.post("/{booking_id}/confirm-pickup", response_model=BookingPublic)
+async def confirm_pickup(
+    booking_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> BookingPublic:
+    booking = await find_booking_for_user(booking_id, current_user)
+    if current_user.get("role") == "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Customer confirmation is required.")
+    if booking["status"] != "pickup_requested":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pickup has not been requested by admin.")
+    updated = await set_booking_status(booking["_id"], "active")
+    await create_notification(
+        role="admin",
+        notification_type="pickup",
+        title="Customer confirmed pickup",
+        description=f"{booking['customer_name']} confirmed pickup for {booking['car_title']}.",
+    )
+    return updated
+
+
+@router.post("/{booking_id}/request-return", response_model=BookingPublic)
+async def request_return(
+    booking_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> BookingPublic:
+    booking = await find_booking_for_user(booking_id, current_user)
+    if current_user.get("role") == "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Customer return request is required.")
+    if booking["status"] != "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active rentals can request return confirmation.")
+    updated = await set_booking_status(booking["_id"], "return_requested")
+    await create_notification(
+        role="admin",
+        notification_type="return",
+        title="Return confirmation requested",
+        description=f"{booking['customer_name']} requested return confirmation for {booking['car_title']}.",
+    )
+    return updated
+
+
+@router.post("/{booking_id}/confirm-return", response_model=BookingPublic)
+async def confirm_return(
+    booking_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> BookingPublic:
+    require_admin(current_user)
+    booking = await find_booking_for_user(booking_id, current_user)
+    if booking["status"] != "return_requested":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Return has not been requested by customer.")
+    updated = await set_booking_status(booking["_id"], "completed")
+    await create_notification(
+        user_id=booking["customer_id"],
+        notification_type="return",
+        title="Rental completed",
+        description=f"Your rental for {booking['car_title']} has been completed. You can now leave a review.",
+    )
+    return updated
 
 
 @router.delete("/{booking_id}", response_model=MessageResponse)
@@ -117,6 +208,21 @@ async def cancel_booking(
         },
     )
     return MessageResponse(message="Booking cancelled successfully.")
+
+
+async def set_booking_status(object_id: ObjectId, booking_status: str) -> BookingPublic:
+    updates = {
+        "status": booking_status,
+        "updated_at": datetime.now(timezone.utc),
+    }
+    if booking_status == "active":
+        updates["payment_status"] = "paid"
+    if booking_status == "completed":
+        updates["payment_status"] = "paid"
+
+    await get_bookings_collection().update_one({"_id": object_id}, {"$set": updates})
+    booking = await get_bookings_collection().find_one({"_id": object_id})
+    return serialize_booking(booking)
 
 
 async def find_booking_for_user(booking_id: str, user: dict) -> dict:

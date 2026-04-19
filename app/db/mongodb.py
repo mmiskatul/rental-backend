@@ -18,6 +18,18 @@ async def connect_to_mongo() -> None:
     await database.bookings.create_index("car_id")
     await database.bookings.create_index("status")
     await database.bookings.create_index("created_at")
+    await database.reviews.create_index("booking_id", unique=True)
+    await database.reviews.create_index("car_id")
+    await database.reviews.create_index("customer_id")
+    await database.reviews.create_index("created_at")
+    await database.settings.create_index("key", unique=True)
+    await database.customer_settings.create_index("user_id", unique=True)
+    await database.favorites.create_index([("user_id", 1), ("car_id", 1)], unique=True)
+    await database.favorites.create_index("created_at")
+    await database.notifications.create_index("user_id")
+    await database.notifications.create_index("role")
+    await database.notifications.create_index("read")
+    await database.notifications.create_index("created_at")
 
 
 async def close_mongo_connection() -> None:
@@ -41,3 +53,23 @@ def get_cars_collection() -> AsyncIOMotorCollection:
 
 def get_bookings_collection() -> AsyncIOMotorCollection:
     return get_database().bookings
+
+
+def get_reviews_collection() -> AsyncIOMotorCollection:
+    return get_database().reviews
+
+
+def get_settings_collection() -> AsyncIOMotorCollection:
+    return get_database().settings
+
+
+def get_customer_settings_collection() -> AsyncIOMotorCollection:
+    return get_database().customer_settings
+
+
+def get_favorites_collection() -> AsyncIOMotorCollection:
+    return get_database().favorites
+
+
+def get_notifications_collection() -> AsyncIOMotorCollection:
+    return get_database().notifications

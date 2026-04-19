@@ -22,5 +22,15 @@ class CarPublic(BaseModel):
     updated_at: datetime
 
 
+class TrendingCarPublic(CarPublic):
+    booking_count: int = 0
+    completed_count: int = 0
+
+
+class CarCategoryPublic(BaseModel):
+    type: str
+    count: int
+
+
 class MessageResponse(BaseModel):
     message: str

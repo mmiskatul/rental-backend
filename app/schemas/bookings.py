@@ -3,7 +3,16 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-BookingStatus = Literal["pending", "approved", "rejected", "active", "completed", "cancelled"]
+BookingStatus = Literal[
+    "pending",
+    "approved",
+    "pickup_requested",
+    "rejected",
+    "active",
+    "return_requested",
+    "completed",
+    "cancelled",
+]
 PaymentStatus = Literal["paid", "pending", "refunded"]
 
 
