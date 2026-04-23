@@ -12,7 +12,9 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Update `.env` with your MongoDB Atlas URI, JWT secrets, and SMTP account.
+Update `.env` with your MongoDB Atlas URI, JWT secrets, SMTP account, and frontend origin.
+`FRONTEND_ORIGIN` accepts a comma-separated list of exact frontend URLs. Localhost URLs and
+Vercel preview/production URLs under `*.vercel.app` are also allowed by CORS.
 
 Run from the project root:
 

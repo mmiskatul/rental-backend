@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "backend/.env"), env_file_encoding="utf-8", extra="ignore")
 
     @property
+    def frontend_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.frontend_origin.split(",") if origin.strip()]
+
+    @property
+    def frontend_origin_regex(self) -> str:
+        return r"^https://.*\.vercel\.app$|^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
+    @property
     def access_token_delta(self) -> timedelta:
         return timedelta(minutes=self.access_token_expire_minutes)
 
