@@ -34,6 +34,7 @@ from app.schemas.auth import (
     TokenPair,
     UserPublic,
     VerifyEmailRequest,
+    VerifyResetCodeRequest,
 )
 from app.services.email import send_password_reset_email, send_verification_email
 
@@ -221,7 +222,7 @@ async def forgot_password(payload: ForgotPasswordRequest) -> MessageResponse:
     users = get_users_collection()
     user = await find_user_by_email(payload.email)
 
-    if user:
+    if user and user.get("role") != "admin":
         reset_code = make_verification_code()
         await users.update_one(
             {"_id": user["_id"]},
@@ -238,18 +239,21 @@ async def forgot_password(payload: ForgotPasswordRequest) -> MessageResponse:
     return MessageResponse(message="If this email exists, a password reset code has been sent.")
 
 
+@router.post("/verify-reset-code", response_model=MessageResponse)
+async def verify_reset_code(payload: VerifyResetCodeRequest) -> MessageResponse:
+    user = await find_user_by_reset_code(payload.email, payload.code)
+    if not user or user.get("role") == "admin":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset code is invalid or expired.")
+
+    return MessageResponse(message="Reset code verified.")
+
+
 @router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(payload: ResetPasswordRequest) -> MessageResponse:
     users = get_users_collection()
-    user = await users.find_one(
-        {
-            "email": payload.email.lower(),
-            "reset_token_hash": hash_reset_token(payload.code),
-            "reset_token_expires_at": {"$gt": datetime.now(timezone.utc)},
-        }
-    )
+    user = await find_user_by_reset_code(payload.email, payload.code)
 
-    if not user:
+    if not user or user.get("role") == "admin":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset code is invalid or expired.")
 
     await users.update_one(
@@ -308,6 +312,16 @@ async def update_profile(
 
 async def find_user_by_email(email: str) -> dict | None:
     return await get_users_collection().find_one({"email": email.lower()})
+
+
+async def find_user_by_reset_code(email: str, code: str) -> dict | None:
+    return await get_users_collection().find_one(
+        {
+            "email": email.lower(),
+            "reset_token_hash": hash_reset_token(code),
+            "reset_token_expires_at": {"$gt": datetime.now(timezone.utc)},
+        }
+    )
 
 
 async def find_user_by_id(user_id: str) -> dict | None:

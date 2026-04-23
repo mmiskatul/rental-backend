@@ -52,6 +52,11 @@ class ResetPasswordRequest(BaseModel):
     _validate_password_strength = field_validator("new_password")(validate_password_strength)
 
 
+class VerifyResetCodeRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6)
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8, max_length=128)
