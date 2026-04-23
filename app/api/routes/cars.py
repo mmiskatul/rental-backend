@@ -11,8 +11,6 @@ from app.services.cloudinary_upload import upload_car_image
 
 router = APIRouter(prefix="/api/cars", tags=["cars"])
 
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-
 
 @router.post("", response_model=CarPublic, status_code=status.HTTP_201_CREATED)
 async def create_car(
@@ -30,11 +28,7 @@ async def create_car(
     fuel_type: Annotated[str | None, Form(max_length=40)] = None,
 ) -> CarPublic:
     require_admin(current_user)
-    if image.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Image must be a JPEG, PNG, or WEBP file.",
-        )
+    require_image_upload(image)
 
     upload_result = await upload_car_image(image)
     now = datetime.now(timezone.utc)
@@ -94,11 +88,7 @@ async def update_car(
     updates = {key: value for key, value in updates.items() if value is not None}
 
     if image:
-        if image.content_type not in ALLOWED_IMAGE_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Image must be a JPEG, PNG, or WEBP file.",
-            )
+        require_image_upload(image)
         upload_result = await upload_car_image(image)
         updates["image_url"] = upload_result["secure_url"]
         updates["image_public_id"] = upload_result["public_id"]
@@ -241,6 +231,14 @@ def parse_car_id(car_id: str) -> ObjectId:
 def require_admin(user: dict) -> None:
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access is required.")
+
+
+def require_image_upload(image: UploadFile) -> None:
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Upload an image file.",
+        )
 
 
 def serialize_car(car: dict) -> CarPublic:
