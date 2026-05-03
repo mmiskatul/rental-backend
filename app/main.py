@@ -49,6 +49,14 @@ app.include_router(reviews_router)
 app.include_router(settings_router)
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "status": "success",
+        "message": "DriveFlow backend is running successfully.",
+    }
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "rental-sphere-backend"}
+    return {"status": "ok", "service": "driveflow-backend"}
