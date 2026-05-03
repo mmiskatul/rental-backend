@@ -363,13 +363,14 @@ def create_tokens(user: dict) -> TokenPair:
 
 def set_auth_cookies(response: Response, tokens: TokenPair) -> None:
     secure = settings.app_env == "production"
+    same_site = "none" if secure else "lax"
     response.set_cookie(
         ACCESS_COOKIE,
         tokens.access_token,
         max_age=settings.access_token_expire_minutes * 60,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=same_site,
         path="/",
     )
     response.set_cookie(
@@ -378,7 +379,7 @@ def set_auth_cookies(response: Response, tokens: TokenPair) -> None:
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=same_site,
         path="/api/auth",
     )
 
